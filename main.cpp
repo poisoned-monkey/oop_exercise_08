@@ -26,22 +26,22 @@ void print_to_console(std::vector<std::unique_ptr<figure>>& figures) {
 void handle(std::vector<std::unique_ptr<figure>>& figures,int buffer_size, std::mutex& mtx) {
 	int file_count = 0;
 	while (true) {
-
 		if (figures.size() == buffer_size) {
 			mtx.lock();
 			++file_count;
 			std::string filename = "file_";
 			filename += std::to_string(file_count) + ".txt";
+			//*
+			auto a = std::async(print_to_file, ref(figures), ref(filename));
+			auto b = std::async(print_to_console, ref(figures));
+			a.wait();
+			b.wait();
+			/*/
 			for (int i = 0; i < figures.size(); ++i) {
-				/*
 				figures[i]->print(std::cout);
 				figures[i]->print(filename);
-				//*/
-				//*
-				auto a = std::async(print_to_file, ref(figures), ref(filename) );
-				auto b = std::async(print_to_console,ref(figures));
-				//*/
-			}
+				
+			}//*/
 			figures.clear();
 			mtx.unlock();
 		}	
@@ -53,8 +53,7 @@ int main() {
 	std::mutex mtx;
 	int buffer_size, menu;
 	std::cin >> buffer_size;
-	figures.reserve(buffer_size);
-	std::thread handler(handle, ref(figures), buffer_size,ref(mtx));
+	std::thread handler(handle, ref(figures), buffer_size, ref(mtx));
 	while (true) {
 		mtx.lock();
 		for (int i = 0; i < buffer_size; ++i) {
