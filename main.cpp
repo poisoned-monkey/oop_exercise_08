@@ -3,7 +3,6 @@
 #include<vector>
 #include<thread>
 #include<mutex>
-#include<Windows.h>
 #include<future>
 #include<condition_variable>
 #include"pentagon.h"
