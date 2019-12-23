@@ -3,6 +3,7 @@
 #include<vector>
 #include<thread>
 #include<mutex>
+#include<Windows.h>
 #include<future>
 #include<condition_variable>
 #include"pentagon.h"
@@ -32,7 +33,9 @@ void handle(std::vector<std::unique_ptr<figure>>& figures, int buffer_size, std:
 	}
 	return;
 }
-int main() {
+int main(int argc, char* argv[]) {
+	if (argc != 2)
+		return 1;
 	std::condition_variable readed;
 	std::condition_variable handled;
 	std::vector<std::unique_ptr<figure>> figures;
@@ -40,7 +43,7 @@ int main() {
 	std::mutex mtx;
 	std::unique_lock<std::mutex> lock(mtx);
 	int buffer_size, menu;
-	std::cin >> buffer_size;
+	buffer_size = std::stoi(argv[1]);
 	bool stop = false;
 	std::thread handler(handle, std::ref(figures), buffer_size, std::ref(readed), std::ref(handled),ref(mtx), std::ref(stop));
 	handled.wait(lock);
