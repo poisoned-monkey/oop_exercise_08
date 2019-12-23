@@ -5,57 +5,47 @@
 #include<mutex>
 #include<Windows.h>
 #include<future>
+#include<condition_variable>
 #include"pentagon.h"
 #include"trapeze.h"
 #include"rhombus.h"
 #include"figure.h"
 #include"factory.h"
+#include"handler.h"
+#include"hanlders.h"
 
 
-void print_to_file(std::vector<std::unique_ptr<figure>>& figures, std::string& filename) {
-	for (int i = 0; i < figures.size(); ++i) {
-		figures[i]->print(filename);
-	}
-}
-void print_to_console(std::vector<std::unique_ptr<figure>>& figures) {
-	for (int i = 0; i < figures.size(); ++i) {
-		figures[i]->print(std::cout);
-	}
-}
+void handle(std::vector<std::unique_ptr<figure>>& figures, int buffer_size, std::condition_variable& readed, std::condition_variable& handled, std::mutex& mtx, bool& Stop) {
+	std::unique_lock<std::mutex> lock(mtx);
+	handled.notify_all();
+	std::vector<std::unique_ptr<handler>> handlers;
 
-void handle(std::vector<std::unique_ptr<figure>>& figures,int buffer_size, std::mutex& mtx) {
-	int file_count = 0;
-	while (true) {
-		if (figures.size() == buffer_size) {
-			mtx.lock();
-			++file_count;
-			std::string filename = "file_";
-			filename += std::to_string(file_count) + ".txt";
-			//*
-			auto a = std::async(print_to_file, ref(figures), ref(filename));
-			auto b = std::async(print_to_console, ref(figures));
-			a.wait();
-			b.wait();
-			/*/
-			for (int i = 0; i < figures.size(); ++i) {
-				figures[i]->print(std::cout);
-				figures[i]->print(filename);
-				
-			}//*/
-			figures.clear();
-			mtx.unlock();
-		}	
+	handlers.push_back(std::make_unique<file_handler>());
+	handlers.push_back(std::make_unique<console_handler>());
+	while (!(Stop)) {
+		readed.wait(lock);
+		//std::cout << figures.size() << std::endl;
+		for (int i = 0; i < handlers.size(); ++i) {
+			handlers[i]->execute(figures);
+		}
+		figures.clear();
+		handled.notify_all();
 	}
+	return;
 }
 int main() {
+	std::condition_variable readed;
+	std::condition_variable handled;
 	std::vector<std::unique_ptr<figure>> figures;
 	std::unique_ptr<factory> my_factory;
 	std::mutex mtx;
+	std::unique_lock<std::mutex> lock(mtx);
 	int buffer_size, menu;
 	std::cin >> buffer_size;
-	std::thread handler(handle, ref(figures), buffer_size, ref(mtx));
+	bool stop = false;
+	std::thread handler(handle, std::ref(figures), buffer_size, std::ref(readed), std::ref(handled),ref(mtx), std::ref(stop));
+	handled.wait(lock);
 	while (true) {
-		mtx.lock();
 		for (int i = 0; i < buffer_size; ++i) {
 			std::cout << "1. Pentagon" << std::endl;
 			std::cout << "2. Rhombus" << std::endl;
@@ -76,16 +66,17 @@ int main() {
 				break;
 			}
 		}
-		mtx.unlock();
-		Sleep(50);
-		mtx.lock();
+		readed.notify_all();
+		handled.wait(lock);
 		std::cout << "Continue? 'y' - Yes 'n' - No" << std::endl;
 		char answer;
 		std::cin >> answer;
-		mtx.unlock();
 		if (answer != 'y')
 			break;
 	}
-	handler.detach();
+	stop = true;
+	readed.notify_all();
+	lock.unlock();
+	handler.join();
 	return 0;
 }
