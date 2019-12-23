@@ -8,9 +8,11 @@ struct file_handler : handler {
 		static int count_file = 0;
 		std::string filename = "";
 		++count_file;
+
 		filename = "file_" + std::to_string(count_file) + ".txt";
+		std::ofstream file(filename);
 		for (int i = 0; i < figures.size(); ++i) {
-			figures[i]->print(filename);
+			figures[i]->print(file);
 		}
 	}
 };
